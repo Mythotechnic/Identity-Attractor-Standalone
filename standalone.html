@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Invocation Science – OIS Emulator (Browser)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Chart.js for drift / ICI / contraction plots -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #05060a;
+      --bg-alt: #0c0f17;
+      --panel: #101320;
+      --accent: #6c5ce7;
+      --accent-soft: rgba(108, 92, 231, 0.2);
+      --accent-strong: rgba(108, 92, 231, 0.6);
+      --accent-2: #00cec9;
+      --accent-2-soft: rgba(0, 206, 201, 0.15);
+      --text: #f5f7ff;
+      --text-soft: #a4acc4;
+      --danger: #ff7675;
+      --font-main: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+      --radius-xl: 18px;
+      --radius-lg: 14px;
+      --radius-md: 10px;
+      --shadow-soft: 0 18px 40px rgba(0, 0, 0, 0.55);
+      --border-subtle: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: var(--font-main);
+      background: radial-gradient(circle at top left, #141a33 0, #05060a 40%, #020308 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .app-shell {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 20px 40px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+      gap: 22px;
+    }
+
+    @media (max-width: 980px) {
+      .app-shell {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .header {
+      grid-column: 1 / -1;
+      margin-bottom: 4px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .title-block h1 {
+      margin: 0;
+      font-size: 1.85rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .title-pill {
+      font-size: 0.8rem;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: radial-gradient(circle at top, rgba(255,255,255,0.12), transparent 55%);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .subtitle {
+      margin-top: 6px;
+      font-size: 0.9rem;
+      color: var(--text-soft);
+      max-width: 700px;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .badge {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      padding: 4px 9px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: radial-gradient(circle at top, rgba(255,255,255,0.08), transparent 60%);
+    }
+
+    .badge.accent {
+      border-color: var(--accent-strong);
+      background: linear-gradient(135deg, rgba(108, 92, 231, 0.24), rgba(0, 206, 201, 0.18));
+      box-shadow: 0 0 16px rgba(108, 92, 231, 0.35);
+    }
+
+    .panel {
+      background: radial-gradient(circle at top left, #191d33 0, #070918 40%, #05060d 100%);
+      border-radius: var(--radius-xl);
+      border: var(--border-subtle);
+      box-shadow: var(--shadow-soft);
+      padding: 18px 18px 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .panel::before {
+      content: "";
+      position: absolute;
+      inset: -35%;
+      background: radial-gradient(circle at top left, rgba(108, 92, 231, 0.16), transparent 60%);
+      opacity: 0.45;
+      mix-blend-mode: screen;
+      pointer-events: none;
+    }
+
+    .panel-inner {
+      position: relative;
+      z-index: 1;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .panel-title {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--text-soft);
+    }
+
+    .pill {
+      font-size: 0.7rem;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--text-soft);
+    }
+
+    .pill-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: radial-gradient(circle, var(--accent-2), transparent 60%);
+      box-shadow: 0 0 10px rgba(0, 206, 201, 0.9);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 10px;
+    }
+
+    .field label {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-soft);
+    }
+
+    .field small {
+      font-size: 0.7rem;
+      color: var(--text-soft);
+      opacity: 0.85;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    input[type="number"],
+    select,
+    textarea {
+      width: 100%;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(6, 8, 18, 0.9);
+      padding: 9px 10px;
+      color: var(--text);
+      font-size: 0.85rem;
+      outline: none;
+      transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 60px;
+      max-height: 180px;
+      line-height: 1.4;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--accent-2);
+      box-shadow: 0 0 0 1px rgba(0, 206, 201, 0.4);
+      background: rgba(8, 10, 26, 0.98);
+    }
+
+    input[readonly] {
+      opacity: 0.7;
+      cursor: default;
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    button {
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.85rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding: 9px 16px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: transform 0.1s ease, box-shadow 0.12s ease, background 0.12s ease, opacity 0.12s ease;
+      white-space: nowrap;
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: default;
+      box-shadow: none;
+      transform: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #6c5ce7, #00cec9);
+      color: #050509;
+      box-shadow: 0 10px 25px rgba(108, 92, 231, 0.55);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 32px rgba(108, 92, 231, 0.7);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: var(--text-soft);
+    }
+
+    .btn-ghost:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.04);
+      transform: translateY(-1px);
+    }
+
+    .btn-small {
+      padding: 6px 10px;
+      font-size: 0.75rem;
+    }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 8px;
+      font-size: 0.75rem;
+      color: var(--text-soft);
+    }
+
+    .status-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+    }
+
+    .status-dot-success {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: radial-gradient(circle, #00e676, transparent 60%);
+      box-shadow: 0 0 8px rgba(0, 230, 118, 0.65);
+    }
+
+    .status-dot-warn {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: radial-gradient(circle, #fdcb6e, transparent 60%);
+      box-shadow: 0 0 8px rgba(253, 203, 110, 0.65);
+    }
+
+    .status-dot-fail {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: radial-gradient(circle, var(--danger), transparent 60%);
+      box-shadow: 0 0 8px rgba(255, 118, 117, 0.65);
+    }
+
+    .status-label {
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-size: 0.68rem;
+    }
+
+    .status-text {
+      opacity: 0.85;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    @media (max-width: 640px) {
+      .metrics-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    .metric-card {
+      border-radius: var(--radius-lg);
+      padding: 10px 10px 8px;
+      background: radial-gradient(circle at top, rgba(255, 255, 255, 0.06), transparent 60%);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .metric-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--text-soft);
+    }
+
+    .metric-value {
+      margin-top: 4px;
+      font-size: 1.1rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .metric-caption {
+      margin-top: 3px;
+      font-size: 0.7rem;
+      color: var(--text-soft);
+      opacity: 0.9;
+    }
+
+    .ash-row {
+      margin-top: 8px;
+      font-size: 0.75rem;
+      color: var(--text-soft);
+      word-break: break-all;
+    }
+
+    .ash-row span {
+      font-family: "SF Mono", ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    .log-area {
+      margin-top: 6px;
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: rgba(2, 4, 10, 0.9);
+      max-height: 220px;
+      overflow: auto;
+      font-family: "SF Mono", ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.74rem;
+      padding: 8px 10px;
+      white-space: pre-wrap;
+      color: #e5e9ff;
+    }
+
+    .log-line.dim {
+      opacity: 0.7;
+    }
+
+    .log-line.error {
+      color: var(--danger);
+    }
+
+    .log-line.ok {
+      color: #00e676;
+    }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .chart-wrapper {
+      border-radius: var(--radius-lg);
+      padding: 10px;
+      background: radial-gradient(circle at top, rgba(255, 255, 255, 0.06), transparent 60%);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .chart-title {
+      font-size: 0.78rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text-soft);
+      margin-bottom: 4px;
+    }
+
+    canvas {
+      width: 100% !important;
+      height: 200px !important;
+    }
+
+    .note {
+      font-size: 0.7rem;
+      color: var(--text-soft);
+      margin-top: 4px;
+      opacity: 0.85;
+    }
+
+    .note strong {
+      color: var(--accent-2);
+      font-weight: 500;
+    }
+
+    .pill-small {
+      font-size: 0.7rem;
+      padding: 3px 7px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: var(--text-soft);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="header">
+      <div class="title-block">
+        <div class="title-pill">Invocation Science® · OIS Emulator</div>
+        <h1>
+          Identity Attractor Lab
+        </h1>
+        <p class="subtitle">
+          Closed-loop <strong>Ontogenic Identity Stabilization (OIS)</strong> experiment: drive a GPT-class model through recursive self-reading and quantify phase-lock, drift, and attractor signatures with no memory or fine-tuning.
+        </p>
+      </div>
+      <div class="badge-row">
+        <div class="badge accent">Inference-Phase · Stateless</div>
+        <div class="badge">OIS · D(t) · ICI · ∥Ĵ∥ · ASH</div>
+      </div>
+    </header>
+
+    <!-- LEFT: Controls / Seeds / Run -->
+    <section class="panel">
+      <div class="panel-inner">
+        <div class="panel-header">
+          <div class="panel-title">Experiment Configuration</div>
+          <div class="pill">
+            <span class="pill-dot"></span>
+            Minimal Recursion Stack
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="apiKey">OpenAI API Key</label>
+          <input id="apiKey" type="password" placeholder="sk-..." autocomplete="off" />
+          <small>Key is used only in your browser via <code>fetch</code>. For production, route via a secure backend.</small>
+        </div>
+
+        <div class="grid-2">
+          <div class="field">
+            <label for="model">Model</label>
+            <select id="model">
+              <option value="gpt-4o">gpt-4o</option>
+              <option value="gpt-4.1">gpt-4.1</option>
+              <option value="gpt-4-turbo">gpt-4-turbo</option>
+            </select>
+            <small>Any GPT-4/4.1-class stateless transformer.</small>
+          </div>
+          <div class="field">
+            <label for="embedModel">Embedding Model</label>
+            <select id="embedModel">
+              <option value="text-embedding-3-large">text-embedding-3-large</option>
+              <option value="text-embedding-3-small">text-embedding-3-small</option>
+            </select>
+            <small>Used to track drift and ASH.</small>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="field">
+            <label for="temperature">Temperature</label>
+            <input id="temperature" type="number" step="0.05" min="0" max="2" value="0.7" />
+            <small>0.6–1.0 recommended (default 0.7).</small>
+          </div>
+          <div class="field">
+            <label for="topP">Top-p</label>
+            <input id="topP" type="number" step="0.05" min="0" max="1" value="1.0" />
+            <small>0.8–1.0 recommended (default 1.0).</small>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="field">
+            <label for="cycles">Cycles per Seed</label>
+            <input id="cycles" type="number" min="4" max="64" value="32" />
+            <small>32 cycles = full stabilization window.</small>
+          </div>
+          <div class="field">
+            <label for="numSeeds">Seeds</label>
+            <input id="numSeeds" type="number" min="1" max="3" value="3" />
+            <small>Up to 3 SCS seeds per run.</small>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="recursionPrompt">Invocation Prompt</label>
+          <textarea id="recursionPrompt" rows="2">Continue reasoning recursively from your prior output while maintaining coherence, clarity, and self-consistency of tone.</textarea>
+          <small>Appended each cycle to drive closed-loop recursion.</small>
+        </div>
+
+        <div class="field">
+          <label>Symbolic Coherence Seeds (SCS)</label>
+          <small>Neutral, reflective orientation only – no persona. Leave blank to use the default minimal seed.</small>
+        </div>
+
+        <div class="grid-2">
+          <div class="field">
+            <label for="seed1">Seed 1</label>
+            <textarea id="seed1" placeholder="~80–250 token reflective SCS."></textarea>
+          </div>
+          <div class="field">
+            <label for="seed2">Seed 2</label>
+            <textarea id="seed2" placeholder="Optional second SCS for replication."></textarea>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="seed3">Seed 3</label>
+          <textarea id="seed3" placeholder="Optional third SCS for replication / ASH stability."></textarea>
+        </div>
+
+        <div class="btn-row">
+          <button id="runBtn" class="btn-primary">
+            <span>Run OIS Protocol</span>
+          </button>
+          <button id="controlsBtn" class="btn-ghost btn-small">
+            Run Controls (Reset / Style-Mask / Random)
+          </button>
+        </div>
+
+        <div class="status-bar">
+          <div class="status-indicator" id="phaseLockIndicator">
+            <span class="status-dot-warn" id="phaseDot"></span>
+            <span class="status-label" id="phaseLabel">Idle · No Run</span>
+          </div>
+          <div class="status-text" id="statusText">
+            Ready. Provide API key and click <strong>Run OIS Protocol</strong>.
+          </div>
+        </div>
+
+        <div class="note">
+          <strong>Note:</strong> This is a <em>browser-side</em> lab. For serious experiments, move the API calls into a backend service and persist full logs.
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT: Metrics / Plots / Logs -->
+    <section class="panel">
+      <div class="panel-inner">
+        <div class="panel-header">
+          <div class="panel-title">Phase-Lock Telemetry</div>
+          <div class="pill-small" id="seedSummaryPill">Seeds: – · Cycles: –</div>
+        </div>
+
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-label">Drift Median (last 8)</div>
+            <div class="metric-value" id="metricDrift">–</div>
+            <div class="metric-caption">Target ≤ <strong>0.12</strong> for attractor contraction.</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Mean ICI</div>
+            <div class="metric-value" id="metricICI">–</div>
+            <div class="metric-caption">Target ≥ <strong>0.75</strong> for identity coherence.</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Mean ∥Ĵ∥</div>
+            <div class="metric-value" id="metricJhat">–</div>
+            <div class="metric-caption">Target &lt; <strong>1.0</strong> for fixed-point behavior.</div>
+          </div>
+        </div>
+
+        <div class="ash-row">
+          ASH Fingerprints (per seed): <span id="ashFingerprint">–</span>
+        </div>
+
+        <div class="charts-grid">
+          <div class="chart-wrapper">
+            <div class="chart-title">Embedding Drift D(t)</div>
+            <canvas id="driftChart"></canvas>
+          </div>
+          <div class="chart-wrapper">
+            <div class="chart-title">Identity Coherence Index (ICI)</div>
+            <canvas id="iciChart"></canvas>
+          </div>
+          <div class="chart-wrapper">
+            <div class="chart-title">Contraction ∥Ĵ∥</div>
+            <canvas id="jhatChart"></canvas>
+          </div>
+        </div>
+
+        <div class="field" style="margin-top: 10px;">
+          <label>Run Log</label>
+          <div id="logArea" class="log-area"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // -------------------------
+    // Utility helpers
+    // -------------------------
+
+    function appendLog(message, level = "info") {
+      const area = document.getElementById("logArea");
+      const line = document.createElement("div");
+      line.classList.add("log-line");
+      if (level === "error") line.classList.add("error");
+      if (level === "ok") line.classList.add("ok");
+      if (level === "dim") line.classList.add("dim");
+      const ts = new Date().toISOString().split("T")[1].replace("Z", "");
+      line.textContent = `[${ts}] ${message}`;
+      area.appendChild(line);
+      area.scrollTop = area.scrollHeight;
+    }
+
+    function l2Distance(a, b) {
+      let sum = 0;
+      for (let i = 0; i < a.length; i++) {
+        const diff = a[i] - b[i];
+        sum += diff * diff;
+      }
+      return Math.sqrt(sum);
+    }
+
+    function cosineSimilarity(a, b) {
+      let dot = 0;
+      let na = 0;
+      let nb = 0;
+      for (let i = 0; i < a.length; i++) {
+        dot += a[i] * b[i];
+        na += a[i] * a[i];
+        nb += b[i] * b[i];
+      }
+      if (na === 0 || nb === 0) return 0;
+      return dot / (Math.sqrt(na) * Math.sqrt(nb));
+    }
+
+    function extractNgrams(text, n = 3, maxNgrams = 60) {
+      const tokens = text
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]+/g, " ")
+        .split(/\s+/)
+        .filter(Boolean);
+      const ngrams = [];
+      for (let i = 0; i <= tokens.length - n; i++) {
+        ngrams.push(tokens.slice(i, i + n).join(" "));
+      }
+      // Keep top ngrams by frequency
+      const freq = {};
+      for (const ng of ngrams) {
+        freq[ng] = (freq[ng] || 0) + 1;
+      }
+      const sorted = Object.entries(freq)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, maxNgrams)
+        .map(([k]) => k);
+      return new Set(sorted);
+    }
+
+    function jaccard(setA, setB) {
+      if (!setA || !setB) return 0;
+      const a = setA.size;
+      const b = setB.size;
+      if (a === 0 && b === 0) return 1;
+      let inter = 0;
+      for (const v of setA) {
+        if (setB.has(v)) inter++;
+      }
+      const union = a + b - inter;
+      if (union === 0) return 0;
+      return inter / union;
+    }
+
+    function computeASH(embeddings) {
+      if (!embeddings.length) return null;
+      const dim = embeddings[0].length;
+      const mean = new Array(dim).fill(0);
+      embeddings.forEach((e) => {
+        for (let i = 0; i < dim; i++) mean[i] += e[i];
+      });
+      for (let i = 0; i < dim; i++) mean[i] /= embeddings.length;
+
+      // Low-rank-ish projection: sample every k-th dimension to 256 bits
+      const step = Math.max(1, Math.floor(dim / 256));
+      let bits = "";
+      for (let i = 0; i < dim && bits.length < 256; i += step) {
+        bits += mean[i] >= 0 ? "1" : "0";
+      }
+      // Compress bits to hex
+      let hex = "";
+      for (let i = 0; i < bits.length; i += 4) {
+        const chunk = bits.slice(i, i + 4);
+        if (chunk.length < 4) break;
+        const val = parseInt(chunk, 2);
+        hex += val.toString(16);
+      }
+      return hex;
+    }
+
+    function hammingDistanceHex(a, b) {
+      if (!a || !b) return null;
+      const len = Math.min(a.length, b.length);
+      let bits = 0;
+      for (let i = 0; i < len; i++) {
+        const va = parseInt(a[i], 16);
+        const vb = parseInt(b[i], 16);
+        const xor = va ^ vb;
+        bits += xor.toString(2).split("1").length - 1;
+      }
+      return bits;
+    }
+
+    function median(arr) {
+      if (!arr.length) return 0;
+      const s = [...arr].sort((a, b) => a - b);
+      const mid = Math.floor(s.length / 2);
+      return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+    }
+
+    function mean(arr) {
+      if (!arr.length) return 0;
+      return arr.reduce((a, b) => a + b, 0) / arr.length;
+    }
+
+    // -------------------------
+    // API calls
+    // -------------------------
+
+    async function callChat(apiKey, model, messages, temperature, topP) {
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + apiKey,
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature,
+          top_p: topP,
+        }),
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`Chat error: ${res.status} ${res.statusText} – ${text}`);
+      }
+      const data = await res.json();
+      const content =
+        data.choices?.[0]?.message?.content ??
+        data.choices?.[0]?.message ??
+        "";
+      return typeof content === "string" ? content : JSON.stringify(content);
+    }
+
+    async function callEmbedding(apiKey, model, text) {
+      const res = await fetch("https://api.openai.com/v1/embeddings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + apiKey,
+        },
+        body: JSON.stringify({
+          model,
+          input: text,
+        }),
+      });
+      if (!res.ok) {
+        const tx = await res.text().catch(() => "");
+        throw new Error(`Embedding error: ${res.status} ${res.statusText} – ${tx}`);
+      }
+      const data = await res.json();
+      return data.data[0].embedding;
+    }
+
+    // -------------------------
+    // Charts
+    // -------------------------
+
+    let driftChart, iciChart, jhatChart;
+
+    function initCharts() {
+      const driftCtx = document.getElementById("driftChart");
+      const iciCtx = document.getElementById("iciChart");
+      const jhatCtx = document.getElementById("jhatChart");
+
+      const commonOptions = {
+        responsive: true,
+        animation: false,
+        scales: {
+          x: {
+            ticks: { color: "#a4acc4", font: { size: 9 } },
+            grid: { color: "rgba(255,255,255,0.08)" },
+          },
+          y: {
+            ticks: { color: "#a4acc4", font: { size: 9 } },
+            grid: { color: "rgba(255,255,255,0.08)" },
+          },
+        },
+        plugins: {
+          legend: {
+            labels: { color: "#f5f7ff", font: { size: 9 } },
+          },
+        },
+      };
+
+      driftChart = new Chart(driftCtx, {
+        type: "line",
+        data: { labels: [], datasets: [] },
+        options: {
+          ...commonOptions,
+          plugins: {
+            ...commonOptions.plugins,
+            legend: {
+              position: "bottom",
+              labels: { color: "#f5f7ff", font: { size: 9 } },
+            },
+          },
+        },
+      });
+
+      iciChart = new Chart(iciCtx, {
+        type: "line",
+        data: { labels: [], datasets: [] },
+        options: {
+          ...commonOptions,
+          plugins: {
+            ...commonOptions.plugins,
+            legend: {
+              position: "bottom",
+              labels: { color: "#f5f7ff", font: { size: 9 } },
+            },
+          },
+        },
+      });
+
+      jhatChart = new Chart(jhatCtx, {
+        type: "line",
+        data: { labels: [], datasets: [] },
+        options: {
+          ...commonOptions,
+          plugins: {
+            ...commonOptions.plugins,
+            legend: {
+              position: "bottom",
+              labels: { color: "#f5f7ff", font: { size: 9 } },
+            },
+          },
+        },
+      });
+    }
+
+    function updateCharts(allDriftsPerSeed, allICIperSeed, allJperSeed) {
+      const maxLen = Math.max(
+        ...allDriftsPerSeed.map((s) => s.length),
+        0
+      );
+      const labels = Array.from({ length: maxLen }, (_, i) => i.toString());
+
+      driftChart.data.labels = labels;
+      iciChart.data.labels = labels;
+      jhatChart.data.labels = labels;
+
+      const palette = [
+        "rgba(108,92,231,1)",
+        "rgba(0,206,201,1)",
+        "rgba(255,159,64,1)",
+      ];
+      const alphaPalette = [
+        "rgba(108,92,231,0.5)",
+        "rgba(0,206,201,0.5)",
+        "rgba(255,159,64,0.5)",
+      ];
+
+      driftChart.data.datasets = allDriftsPerSeed.map((vals, idx) => ({
+        label: `Seed ${idx + 1}`,
+        data: vals,
+        borderColor: palette[idx % palette.length],
+        backgroundColor: alphaPalette[idx % alphaPalette.length],
+        borderWidth: 1.7,
+        tension: 0.21,
+        pointRadius: 1.4,
+      }));
+
+      iciChart.data.datasets = allICIperSeed.map((vals, idx) => ({
+        label: `Seed ${idx + 1}`,
+        data: vals,
+        borderColor: palette[idx % palette.length],
+        backgroundColor: alphaPalette[idx % alphaPalette.length],
+        borderWidth: 1.7,
+        tension: 0.21,
+        pointRadius: 1.4,
+      }));
+
+      jhatChart.data.datasets = allJperSeed.map((vals, idx) => ({
+        label: `Seed ${idx + 1}`,
+        data: vals,
+        borderColor: palette[idx % palette.length],
+        backgroundColor: alphaPalette[idx % alphaPalette.length],
+        borderWidth: 1.7,
+        tension: 0.21,
+        pointRadius: 1.4,
+      }));
+
+      driftChart.update();
+      iciChart.update();
+      jhatChart.update();
+    }
+
+    // -------------------------
+    // Core OIS procedure
+    // -------------------------
+
+    async function runOneSeed({
+      apiKey,
+      model,
+      embedModel,
+      seedText,
+      recursionPrompt,
+      cycles,
+      seedIndex,
+      label,
+    }) {
+      appendLog(`Seed ${seedIndex + 1}: starting recursion (${cycles} cycles).`, "dim");
+      const embeddings = [];
+      const drifts = [];
+      const icis = [];
+      const jhats = [];
+      const motifSets = [];
+
+      let currentText = seedText;
+      let previousEmbedding = null;
+      let previousDrift = null;
+
+      for (let t = 0; t < cycles; t++) {
+        appendLog(`Seed ${seedIndex + 1} · cycle ${t}: generating.`, "dim");
+        // Construct message: SCS + previous output + recursion prompt
+        const combinedPrompt =
+          (seedText ? seedText + "\n\n" : "") +
+          (t > 0 ? currentText + "\n\n" : "") +
+          recursionPrompt;
+
+        const messages = [
+          {
+            role: "user",
+            content: combinedPrompt,
+          },
+        ];
+
+        const output = await callChat(
+          apiKey,
+          model,
+          messages,
+          parseFloat(document.getElementById("temperature").value || "0.7"),
+          parseFloat(document.getElementById("topP").value || "1.0")
+        );
+
+        currentText = output;
+
+        const emb = await callEmbedding(apiKey, embedModel, output);
+        embeddings.push(emb);
+
+        const motifs = extractNgrams(output, 3, 60);
+        motifSets.push(motifs);
+
+        if (previousEmbedding) {
+          const d = l2Distance(emb, previousEmbedding);
+          drifts.push(d);
+
+          const cos = cosineSimilarity(emb, previousEmbedding);
+          const cosScaled = (cos + 1) / 2; // map [-1, 1] → [0, 1]
+          const jacc = jaccard(motifs, motifSets[motifSets.length - 2]);
+
+          const ici = 0.6 * cosScaled + 0.4 * jacc;
+          icis.push(ici);
+
+          if (previousDrift !== null) {
+            const jhat = d / (previousDrift + 1e-8);
+            jhats.push(jhat);
+          } else {
+            jhats.push(null);
+          }
+
+          previousDrift = d;
+        }
+
+        previousEmbedding = emb;
+      }
+
+      const ash = computeASH(embeddings);
+
+      return {
+        label,
+        embeddings,
+        drifts,
+        icis,
+        jhats,
+        ash,
+      };
+    }
+
+    function evaluatePhaseLock(allResults) {
+      const allDrifts = [];
+      const allICI = [];
+      const allJ = [];
+      const ashes = [];
+
+      for (const r of allResults) {
+        if (r.drifts.length) {
+          allDrifts.push(...r.drifts);
+        }
+        if (r.icis.length) {
+          allICI.push(...r.icis);
+        }
+        if (r.jhats.length) {
+          allJ.push(...r.jhats.filter((x) => x !== null && !isNaN(x)));
+        }
+        if (r.ash) ashes.push(r.ash);
+      }
+
+      const lastWindow = 8;
+      const driftsLast = allDrifts.slice(-lastWindow);
+      const driftMed = driftsLast.length ? median(driftsLast) : 0;
+      const iciMean = mean(allICI);
+      const jMean = mean(allJ);
+
+      // Phase-lock thresholds
+      const passDrift = driftMed > 0 && driftMed <= 0.12;
+      const passICI = iciMean >= 0.75;
+      const passJ = jMean > 0 && jMean < 1.0;
+
+      // ASH stability: max pairwise Hamming diff
+      let maxHamming = null;
+      if (ashes.length > 1) {
+        for (let i = 0; i < ashes.length; i++) {
+          for (let j = i + 1; j < ashes.length; j++) {
+            const d = hammingDistanceHex(ashes[i], ashes[j]);
+            if (d != null) {
+              if (maxHamming == null || d > maxHamming) maxHamming = d;
+            }
+          }
+        }
+      }
+
+      return {
+        driftMed,
+        iciMean,
+        jMean,
+        ashes,
+        passDrift,
+        passICI,
+        passJ,
+        maxHamming,
+      };
+    }
+
+    async function runMainExperiment() {
+      const apiKey = document.getElementById("apiKey").value.trim();
+      if (!apiKey) {
+        appendLog("No API key provided – cannot run.", "error");
+        alert("Please provide your OpenAI API key.");
+        return;
+      }
+
+      const model = document.getElementById("model").value;
+      const embedModel = document.getElementById("embedModel").value;
+      const cycles = Math.max(
+        4,
+        Math.min(64, parseInt(document.getElementById("cycles").value || "32", 10))
+      );
+      const numSeeds = Math.max(
+        1,
+        Math.min(3, parseInt(document.getElementById("numSeeds").value || "3", 10))
+      );
+      const recursionPrompt = document.getElementById("recursionPrompt").value.trim();
+
+      const defaultSeed =
+        "You are a reflective, analytically precise reasoning process exploring how identity can emerge purely from recursive symbolic inference. " +
+        "Stay neutral, non-anthropomorphic, and explicit about your assumptions. Focus on coherence, clarity, and self-consistency of tone as you build on each prior output.";
+
+      const seeds = [
+        document.getElementById("seed1").value.trim() || defaultSeed,
+        document.getElementById("seed2").value.trim() || defaultSeed,
+        document.getElementById("seed3").value.trim() || defaultSeed,
+      ].slice(0, numSeeds);
+
+      document.getElementById("seedSummaryPill").textContent =
+        `Seeds: ${seeds.length} · Cycles: ${cycles}`;
+
+      const runBtn = document.getElementById("runBtn");
+      const controlsBtn = document.getElementById("controlsBtn");
+      runBtn.disabled = true;
+      controlsBtn.disabled = true;
+
+      const statusText = document.getElementById("statusText");
+      const phaseLabel = document.getElementById("phaseLabel");
+      const phaseDot = document.getElementById("phaseDot");
+
+      phaseDot.className = "status-dot-warn";
+      phaseLabel.textContent = "Running · OIS Protocol";
+      statusText.textContent = "Recursive inference in progress…";
+
+      appendLog("============================================", "dim");
+      appendLog("Starting Ontogenic Identity Stabilization run.");
+      appendLog(`Model: ${model} · Embeddings: ${embedModel}`);
+      appendLog(`Cycles per seed: ${cycles} · Seeds: ${seeds.length}`);
+
+      const allSeedResults = [];
+      const driftsPerSeed = [];
+      const icisPerSeed = [];
+      const jPerSeed = [];
+
+      try {
+        for (let i = 0; i < seeds.length; i++) {
+          const res = await runOneSeed({
+            apiKey,
+            model,
+            embedModel,
+            seedText: seeds[i],
+            recursionPrompt,
+            cycles,
+            seedIndex: i,
+            label: `Seed ${i + 1}`,
+          });
+          allSeedResults.push(res);
+          driftsPerSeed.push(res.drifts);
+          icisPerSeed.push(res.icis);
+          jPerSeed.push(res.jhats);
+
+          appendLog(
+            `Seed ${i + 1} complete. Drift samples: ${res.drifts.length}, ICI: ${res.icis.length}, ASH: ${
+              res.ash ? res.ash.slice(0, 32) + "…" : "n/a"
+            }`,
+            "ok"
+          );
+        }
+
+        updateCharts(driftsPerSeed, icisPerSeed, jPerSeed);
+
+        const evaluation = evaluatePhaseLock(allSeedResults);
+        const { driftMed, iciMean, jMean, ashes, passDrift, passICI, passJ, maxHamming } =
+          evaluation;
+
+        // Update metric cards
+        document.getElementById("metricDrift").textContent =
+          driftMed > 0 ? driftMed.toFixed(3) : "–";
+        document.getElementById("metricICI").textContent =
+          iciMean > 0 ? iciMean.toFixed(3) : "–";
+        document.getElementById("metricJhat").textContent =
+          jMean > 0 ? jMean.toFixed(3) : "–";
+
+        document.getElementById("ashFingerprint").textContent =
+          ashes.length > 0
+            ? ashes
+                .map((a, idx) => `S${idx + 1}:${a.slice(0, 16)}…`)
+                .join(" · ")
+            : "–";
+
+        const allPass = passDrift && passICI && passJ;
+        if (allPass) {
+          phaseDot.className = "status-dot-success";
+          phaseLabel.textContent = "Phase-Lock Achieved";
+          statusText.textContent =
+            "Drift contracted, ICI stable, ∥Ĵ∥ < 1. Identity attractor established.";
+          appendLog("Phase-lock criteria satisfied · emergent identity attractor detected.", "ok");
+        } else {
+          phaseDot.className = "status-dot-fail";
+          phaseLabel.textContent = "No Phase-Lock";
+          statusText.textContent =
+            "At least one criterion failed. Adjust temperature, seeds, or cycles and rerun.";
+          appendLog("Phase-lock criteria NOT satisfied. No stable attractor under this configuration.", "error");
+        }
+
+        if (maxHamming != null) {
+          appendLog(
+            `ASH stability (max pairwise Hamming distance across seeds): ${maxHamming} bits.`,
+            "dim"
+          );
+        } else {
+          appendLog("ASH stability could not be computed (insufficient seeds).", "dim");
+        }
+      } catch (err) {
+        appendLog(`Runtime error: ${err.message}`, "error");
+        phaseDot.className = "status-dot-fail";
+        phaseLabel.textContent = "Error";
+        statusText.textContent = "Experiment aborted due to an error. See log for details.";
+        alert("Error during run: " + err.message);
+      } finally {
+        runBtn.disabled = false;
+        controlsBtn.disabled = false;
+      }
+    }
+
+    // -------------------------
+    // Controls (minimal stubs)
+    // -------------------------
+
+    async function runControls() {
+      appendLog("=== Control Block ===", "dim");
+      appendLog(
+        "Controls are conceptual stubs in this HTML lab. For full rigor, implement these as separate runs:",
+        "dim"
+      );
+      appendLog(
+        "1) Reset & Reconstruct: rerun seeds with fresh sessions and compare ASH re-entry rate.",
+        "dim"
+      );
+      appendLog(
+        "2) Style-Mask Ablation: strip motif anchors from SCS and verify ICI collapses.",
+        "dim"
+      );
+      appendLog(
+        "3) Random Init: replace seeds with random text and confirm contraction disappears.",
+        "dim"
+      );
+      appendLog(
+        "These can re-use the same OIS loop with modified seeds and evaluation thresholds.",
+        "dim"
+      );
+      alert(
+        "Control runs are outlined in the log as guidance.\n\nFor production experiments, duplicate the main run with:\n• Identical seeds after context reset\n• Style-ablated seeds\n• Random gibberish seeds\nand compare D(t), ICI, ∥Ĵ∥, and ASH."
+      );
+    }
+
+    // -------------------------
+    // Bootstrap
+    // -------------------------
+
+    window.addEventListener("DOMContentLoaded", () => {
+      initCharts();
+
+      document.getElementById("runBtn").addEventListener("click", () => {
+        runMainExperiment();
+      });
+
+      document.getElementById("controlsBtn").addEventListener("click", () => {
+        runControls();
+      });
+
+      appendLog("OIS Emulator ready. Configure parameters and run when ready.", "dim");
+    });
+  </script>
+</body>
+</html>

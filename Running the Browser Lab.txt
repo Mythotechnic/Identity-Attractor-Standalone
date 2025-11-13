@@ -1,0 +1,20 @@
+Running the Browser Lab
+
+Open:
+
+web/identity-attractor-lab.html
+
+
+…directly in a modern browser (no build step needed).
+
+The HTML lab:
+
+Lets you configure model, temperature, top-p, cycles, and seeds
+
+Runs the OIS loop entirely in the browser via the OpenAI API
+
+Plots D(t), ICI, and ∥Ĵ∥ per seed using Chart.js
+
+Shows ASH fingerprints and a simple phase-lock evaluation against the same thresholds
+
+For serious experiments, use the Python CLI version (reproducible runs, proper logging) and treat the HTML lab as an interactive visual console.

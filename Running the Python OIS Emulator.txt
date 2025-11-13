@@ -1,0 +1,42 @@
+From repo root:
+
+python -m ois_emulator.main
+
+
+This will:
+
+Load SCS seeds from ois_emulator/seeds/seed*.txt
+
+Run 3 seeds × 32 cycles (default)
+
+Compute:
+
+Drift D(t) (L2 distance between embeddings)
+
+Identity Coherence Index (ICI)
+
+Contraction ∥Ĵ∥
+
+Attractor Signature Hash (ASH)
+
+Save results to ois_emulator/results/YYYYMMDDTHHMMSS/:
+
+seedX_metrics.csv
+
+drift_plot.png
+
+ici_plot.png
+
+contraction_plot.png
+
+summary.txt
+
+Phase-lock is considered achieved when:
+
+median D(last 8) ≤ 0.12
+
+mean ICI ≥ 0.75
+
+mean ∥Ĵ∥ < 1.0
+
+ASH stable across seeds (low Hamming distance)

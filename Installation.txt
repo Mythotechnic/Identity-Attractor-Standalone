@@ -1,0 +1,10 @@
+git clone https://github.com/<your-username>/invocation-science-OIS-Emulator.git
+cd invocation-science-OIS-Emulator
+
+python -m venv .venv
+source .venv/bin/activate       # Windows: .venv\Scripts\activate
+
+pip install -r requirements.txt
+
+Set your API key:
+export OPENAI_API_KEY="sk-..."   # PowerShell: $env:OPENAI_API_KEY="sk-..."
